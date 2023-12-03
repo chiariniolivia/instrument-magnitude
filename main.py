@@ -86,20 +86,28 @@ if __name__ == '__main__':
 
 
 
-    darkTimes = ''
+    darkTimes = []
     for key in darkDicionary.keys():
-        darkTimes=f'{darkTime},{key}' 
+        darkTimes.append(key) 
     
-    flatTimes = ''
+    flatTimes = []
     for key in flatDicionary.keys():
-        darkTimes=f'{flatTimes},{key}' 
+        darkTimes.append(key) 
 
-    lightTimes = ''
+    lightTimes = []
     for key in lightDicionary.keys():
-        lightTimes=f'{lightTimes},{key}'
+        lightTimes.append(key)
 
-    print(f'All dark time: \n {darkTimes}')
-    print(f'All flat time: \n {flatTimes}')
-    print(f'All light time: \n {lightTimes}')
+    print(f'All dark keys: \n {darkTimes}')
+    print(f'All flat keys: \n {flatTimes}')
+    print(f'All light keys: \n {lightTimes}')
+
+    masterDarkFlatdict=dict(none)
+    #for key in darkDicionary.keys():
+    #
+    """
+    check if exposure time is inside list of flat times 
+    
+    """
 
 
