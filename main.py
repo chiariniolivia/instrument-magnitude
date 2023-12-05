@@ -193,10 +193,21 @@ if __name__ == '__main__':
     Y, X = np.ogrid[:dw*2, :dw*2]
     dist = np.sqrt((X-dw)**2 + (Y-dw)**2)
     ones = np.ones((dw*2, dw*2))
-    
+    radius = 15
+
     #loop through all science
     
+
+    """
     
+
+    """
+
+
+    for scienceFrame in scienceFramelist:
+        mean, median, std, max = np.mean(scienceFrame), np.median(scienceFrame), np.std(scienceFrame), np.max(scienceFrame)
+        sourceList = DAOStarFinder( scienceFrame,threshold=median, fwhm=20.0, sky=mean, exclude_border=True, brightest=10, peakmax=max)
+        
+
     
-    mean, median, std, max = np.mean(masterLight), np.median(masterLight), np.std(masterLight), np.max(masterLight)
     
