@@ -75,6 +75,7 @@ ASSUMPTIONS:
     -all darks, flats, and biases are provided within directory given as input
 """
 if __name__ == '__main__':
+
     print("rough instrument magnitude calculator now running")
     try:
         inputPath=argv[1]
@@ -136,11 +137,66 @@ if __name__ == '__main__':
     print(f'All flat keys: \n {flatTimes}')
     print(f'All light keys: \n {lightTimes}')
 
-    masterDarkFlatdict=dict(none)
-    #for key in darkDicionary.keys():
-    #
     
+    darkFlatDict=dict(None)
+    darkLightDict=dict(None)
     """
-    check if exposure time is inside list of flat times 
+    something here to check if all needed redux files are there, i.e. if 5s exposure, 5s dark,
+    need to make sure all flats have a dark AND all lights have a dark, if not then make a guess
+    ensure darkFlatDict and flatDictionary have the same keys, needs to add filter
+    ensure darkLightDict and lightDictionary have the same keys, needs to add filter
 
     """
+
+    #master darks for flat integration times
+    masterDarkFlatdict=dict(None)
+    for key in darkFlatDict.keys(): 
+        masterDarkFlatdict[key]=None
+        darkFlatStack = darkFlatDict[key]
+        masterDarkFlat = np.median(darkFlatStack, axis=0)
+        masterDarkFlatdict[key]= masterDarkFlat
+        plotImg(masterDarkFlatdict[key], 2, "Master Dark for Flats in Filter --")
+
+    
+    #master darks for light integration times
+    masterDarkLightdict=dict(None)
+    for key in darkLightDict.keys():
+        masterDarkLightdict[key]=None
+        darkLightStack = darkLightDict[key]
+        masterDarkLight = np.median(darkLightStack, axis=0)
+        masterDarkLightdict[key]=masterDarkLight
+        plotImg(masterDarkLightdict[key], 2, "Master Dark for Light Image in time ---")
+
+    #master flats for filter-time pairs
+    masterFlatdict=dict(None)
+    for key in flatDicionary.keys():
+        masterFlatdict[key]=None
+        flatStack=flatDicionary[key]
+        masterFlat= np.median(darkFlatStack, axis=0) - masterDarkFlatdict[key]
+        C = np.median(masterFlat)
+        masterFlatdict[key]=masterFlat/C
+        plotImg(masterDarkFlatdict[key], 2, "Master Flat in Filter --")
+
+    #master lights
+    scienceFramelist=[]
+    for key in lightDicionary.keys():
+        lightStack=lightDicionary[key]
+        masterLight = (np.median(lightStack, axis=0) - masterDarkLightDict[key])/masterFlatdict[key]
+        scienceFramelist.append(masterLight)
+        plotImg(scienceFramelist[-1], 2, "Top of the Telescope Light Frame for ---")
+    
+    #calculate statistics for science frames
+    
+    #consts.
+    dw = 25
+    radii = np.linspace(0, 2*dw, 2*dw)
+    Y, X = np.ogrid[:dw*2, :dw*2]
+    dist = np.sqrt((X-dw)**2 + (Y-dw)**2)
+    ones = np.ones((dw*2, dw*2))
+    
+    #loop through all science
+    
+    
+    
+    mean, median, std, max = np.mean(masterLight), np.median(masterLight), np.std(masterLight), np.max(masterLight)
+    
