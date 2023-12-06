@@ -1,6 +1,8 @@
 #dependancies
 import numpy as np
 import os.path
+import csv
+
 
 from astropy.io import fits
 from matplotlib import pyplot as plt
@@ -86,9 +88,9 @@ if __name__ == '__main__':
 
 
     #dictonaries of all .fits files
-    darkDicionary=dict(None)
-    flatDicionary=dict(None)
-    lightDicionary=dict(None)
+    darkDicionary=dict()
+    flatDicionary=dict()
+    lightDicionary=dict()
     
     biasFits=[]
 
@@ -101,55 +103,58 @@ if __name__ == '__main__':
                 #find the type of image, then find its exposure time. 
                 #see if any other of that type of image have been saved for that time. if not, make a list for that time.abs
                 #append list for that exposure time with current file
-
                 if(hdul.header["FRAMETYP"]=="Light"):
-                    if lightDicionary.get(f"{hdul.header['FILTER']}-{time}")==None:
-                        lightDicionary[f"{hdul.header['FILTER']}-{time}"]=[]
-                    lightDicionary[f"{hdul.header['FILTER']}-{time}"].append(hdul.data)
+                    if hdul.header['FILTER'] =='U':
+                        continue
+                    if   f"{hdul.header['FILTER']}-{float (time):0.2f}" not  in lightDicionary:
+                        lightDicionary[f"{hdul.header['FILTER']}-{float (time):0.2f}"]=[]
+                    lightDicionary[f"{hdul.header['FILTER']}-{float (time):0.2f}"].append(hdul.data)
 
                 elif(hdul.header["FRAMETYP"]=="Dark"):
-                    if darkicionary.get(time)==None:
-                        lightDicionary[time]=[]
-                    darkDicionary[time].append(hdul.data)
+                    if  f'{float (time):0.2f}' not in darkDicionary:
+                        darkDicionary[f'{float (time):0.2f}']=[]
+                    darkDicionary[f'{float (time):0.2f}'].append(hdul.data)
 
                 elif(hdul.header["FRAMETYP"]=="Flat"):
-                    if flatDicionary.get(f"{hdul.header['FILTER']}-{time}")==None:
-                        flatDicionary[f"{hdul.header['FILTER']}-{time}"]=[]
-                    flatDicionary[f"{hdul.header['FILTER']}-{time}"].append(hdul.data)         
+                    #if hdul.header['FILTER'] =='U':
+                      # continue
+                    if f"{hdul.header['FILTER']}-{float (time):0.2f}" not in flatDicionary:
+                        flatDicionary[f"{hdul.header['FILTER']}-{float (time):0.2f}"]=[]
+                    flatDicionary[f"{hdul.header['FILTER']}-{float (time):0.2f}"].append(hdul.data)         
                 
                 elif(hdul.header["FRAMETYP"]=="Bias"):
                     biasFits.append(hdul.data)
 
+    timesNotInDark = []
+    darkFlatDict = dict()
+    for key in flatDicionary:
+        throwaway, time = key.split('-')
+        time = f'{float (time):0.2f}'
+        if time not in darkDicionary:
+            timesNotInDark.append(time)
+        else:
+            darkFlatDict[key]=darkDicionary[time]
+    darkLightDict = dict()
+    for key in lightDicionary:
+        throwaway, time = key.split('-')
+        time = f'{float (time):0.2f}'
+        if time not in darkDicionary:
+            timesNotInDark.append(time)
+        else:
+            darkLightDict[key]=darkDicionary[time]
+    print(f'{timesNotInDark}')
 
-    darkTimes = []
-    for key in darkDicionary.keys():
-        darkTimes.append(key) 
-    
-    flatTimes = []
-    for key in flatDicionary.keys():
-        darkTimes.append(key) 
-
-    lightTimes = []
-    for key in lightDicionary.keys():
-        lightTimes.append(key)
-
-    print(f'All dark keys: \n {darkTimes}')
-    print(f'All flat keys: \n {flatTimes}')
-    print(f'All light keys: \n {lightTimes}')
-
-    
-    darkFlatDict=dict(None)
-    darkLightDict=dict(None)
     """
     something here to check if all needed redux files are there, i.e. if 5s exposure, 5s dark,
     need to make sure all flats have a dark AND all lights have a dark, if not then make a guess
     ensure darkFlatDict and flatDictionary have the same keys, needs to add filter
     ensure darkLightDict and lightDictionary have the same keys, needs to add filter
-
     """
 
+    exit(0)
+
     #master darks for flat integration times
-    masterDarkFlatdict=dict(None)
+    masterDarkFlatdict=dict()
     for key in darkFlatDict.keys(): 
         masterDarkFlatdict[key]=None
         darkFlatStack = darkFlatDict[key]
@@ -159,7 +164,7 @@ if __name__ == '__main__':
 
     
     #master darks for light integration times
-    masterDarkLightdict=dict(None)
+    masterDarkLightdict=dict()
     for key in darkLightDict.keys():
         masterDarkLightdict[key]=None
         darkLightStack = darkLightDict[key]
@@ -168,7 +173,7 @@ if __name__ == '__main__':
         plotImg(masterDarkLightdict[key], 2, "Master Dark for Light Image in time ---")
 
     #master flats for filter-time pairs
-    masterFlatdict=dict(None)
+    masterFlatdict=dict()
     for key in flatDicionary.keys():
         masterFlatdict[key]=None
         flatStack=flatDicionary[key]
@@ -195,11 +200,11 @@ if __name__ == '__main__':
     ones = np.ones((dw*2, dw*2))
     radius = 15
 
-    #loop through all science
+    #loop through all science frames
     
+    """ 
+    generate a CSV file, each science frame will have its own file. each source within the frame its own row. coresponding images with numbered stars as well.
 
-    """
-    
 
     """
 
@@ -207,6 +212,7 @@ if __name__ == '__main__':
     for scienceFrame in scienceFramelist:
         mean, median, std, max = np.mean(scienceFrame), np.median(scienceFrame), np.std(scienceFrame), np.max(scienceFrame)
         sourceList = DAOStarFinder( scienceFrame,threshold=median, fwhm=20.0, sky=mean, exclude_border=True, brightest=10, peakmax=max)
+
         
 
     
