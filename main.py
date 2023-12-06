@@ -70,12 +70,20 @@ def fit_gaussian_1d(x_data, y_data, p0):
 #main script
 
 inputpath = None
-
+ignore = None
 """
 ASSUMPTIONS:
     -all fits from within input path are same source
     -all darks, flats, and biases are provided within directory given as input
 """
+
+"""
+ARGUMENTS:
+    [1] path to all fits files
+    [2] filters to ignore {UVBRI}
+"""
+
+
 if __name__ == '__main__':
 
     print("rough instrument magnitude calculator now running")
@@ -85,7 +93,11 @@ if __name__ == '__main__':
         print("No file path provided as argument to python script.\n Exiting")
         exit(0)
 
-
+    try:
+        ignore=argv[2]
+    except:
+        pass
+    
 
     #dictonaries of all .fits files
     darkDicionary=dict()
@@ -93,8 +105,6 @@ if __name__ == '__main__':
     lightDicionary=dict()
     
     biasFits=[]
-
-
 
     """
 
@@ -112,7 +122,7 @@ if __name__ == '__main__':
                 #see if any other of that type of image have been saved for that time. if not, make a list for that time.abs
                 #append list for that exposure time with current file
                 if(hdul.header["FRAMETYP"]=="Light"):
-                    if hdul.header['FILTER'] =='U':
+                    if hdul.header['FILTER'] in ignore:
                         continue
                     if   f"{hdul.header['FILTER']}-{float (time):0.2f}" not  in lightDicionary:
                         lightDicionary[f"{hdul.header['FILTER']}-{float (time):0.2f}"]=[]
@@ -126,6 +136,8 @@ if __name__ == '__main__':
                 elif(hdul.header["FRAMETYP"]=="Flat"):
                     #if hdul.header['FILTER'] =='U':
                       # continue
+                    if hdul.header['FILTER'] in ignore:
+                        continue
                     if f"{hdul.header['FILTER']}-{float (time):0.2f}" not in flatDicionary:
                         flatDicionary[f"{hdul.header['FILTER']}-{float (time):0.2f}"]=[]
                     flatDicionary[f"{hdul.header['FILTER']}-{float (time):0.2f}"].append(hdul.data)         
@@ -152,18 +164,9 @@ if __name__ == '__main__':
             darkLightDict[key]=darkDicionary[time]
     print(f'{timesNotInDark}')
 
-    """
-    something here to check if all needed redux files are there, i.e. if 5s exposure, 5s dark,
-    need to make sure all flats have a dark AND all lights have a dark, if not then make a guess
-    ensure darkFlatDict and flatDictionary have the same keys, needs to add filter
-    ensure darkLightDict and lightDictionary have the same keys, needs to add filter
-    """
-
-    exit(0)
-
     #master darks for flat integration times
     masterDarkFlatdict=dict()
-    for key in darkFlatDict.keys(): 
+    for key in darkFlatDict: 
         masterDarkFlatdict[key]=None
         darkFlatStack = darkFlatDict[key]
         masterDarkFlat = np.median(darkFlatStack, axis=0)
@@ -172,29 +175,35 @@ if __name__ == '__main__':
 
     
     #master darks for light integration times
-    masterDarkLightdict=dict()
-    for key in darkLightDict.keys():
-        masterDarkLightdict[key]=None
+    masterDarkLightDict=dict()
+    for key in darkLightDict:
+        masterDarkLightDict[key]=None
         darkLightStack = darkLightDict[key]
         masterDarkLight = np.median(darkLightStack, axis=0)
-        masterDarkLightdict[key]=masterDarkLight
-        plotImg(masterDarkLightdict[key], 2, "Master Dark for Light Image in time ---")
+        masterDarkLightDict[key]=masterDarkLight
+        plotImg(masterDarkLightDict[key], 2, "Master Dark for Light Image in time ---")
 
     #master flats for filter-time pairs
     masterFlatdict=dict()
-    for key in flatDicionary.keys():
-        masterFlatdict[key]=None
+    for key in flatDicionary:
+        lightfilter, time = key.split('-')
+        masterFlatdict[lightfilter]=None
         flatStack=flatDicionary[key]
-        masterFlat= np.median(darkFlatStack, axis=0) - masterDarkFlatdict[key]
+        masterFlat= np.median(flatStack, axis=0) - masterDarkFlatdict[key]
         C = np.median(masterFlat)
-        masterFlatdict[key]=masterFlat/C
-        plotImg(masterDarkFlatdict[key], 2, "Master Flat in Filter --")
+        masterFlatdict[lightfilter]=masterFlat/C
+        plotImg(masterFlatdict[lightfilter], 2, "Master Flat in Filter --")
 
+
+
+    print(f'FLATS: {masterFlatdict.keys()}')
+    print(f'LIGHTS: {lightDicionary.keys()}')
     #master lights
     scienceFramelist=[]
     for key in lightDicionary.keys():
+        lightfilter, time = key.split('-')
         lightStack=lightDicionary[key]
-        masterLight = (np.median(lightStack, axis=0) - masterDarkLightDict[key])/masterFlatdict[key]
+        masterLight = (np.median(lightStack, axis=0) - masterDarkLightDict[key])/masterFlatdict[lightfilter]
         scienceFramelist.append(masterLight)
         plotImg(scienceFramelist[-1], 2, "Top of the Telescope Light Frame for ---")
     
@@ -219,6 +228,7 @@ if __name__ == '__main__':
 
     for scienceFrame in scienceFramelist:
         mean, median, std, max = np.mean(scienceFrame), np.median(scienceFrame), np.std(scienceFrame), np.max(scienceFrame)
+        
         sourceList = DAOStarFinder( scienceFrame,threshold=median, fwhm=20.0, sky=mean, exclude_border=True, brightest=10, peakmax=max)
 
         
