@@ -94,6 +94,14 @@ if __name__ == '__main__':
     
     biasFits=[]
 
+
+
+    """
+
+    add thing to exlucde ultraviolet or ingrared frames if flats not taken for lgiht expsoure times
+
+    """
+
     for root, dirs, files in os.walk(inputPath):
         for file in files:
             if file.endswith(".fits"):
