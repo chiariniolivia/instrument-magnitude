@@ -96,6 +96,7 @@ if __name__ == '__main__':
     try:
         ignore=argv[2]
     except:
+        ignore=""
         pass
     
 
