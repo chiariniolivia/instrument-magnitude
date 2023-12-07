@@ -2,7 +2,7 @@
 import numpy as np
 import os.path
 import csv
-
+import datetime 
 
 from astropy.io import fits
 from matplotlib import pyplot as plt
@@ -88,7 +88,7 @@ if __name__ == '__main__':
 
     print("rough instrument magnitude calculator now running")
     try:
-        inputPath=argv[1]
+        inputpath=argv[1]
     except IndexError:
         print("No file path provided as argument to python script.\n Exiting")
         exit(0)
@@ -106,13 +106,19 @@ if __name__ == '__main__':
     
     biasFits=[]
 
-    """
 
-    add thing to exlucde ultraviolet or ingrared frames if flats not taken for lgiht expsoure times
 
-    """
-
-    for root, dirs, files in os.walk(inputPath):
+    dTime=f'{datetime.datetime.now()}'
+    year=f'{dTime[:4]}'
+    month=f'{dTime[5:7]}'
+    day=f'{dTime[8:10]}'
+    hour=f'{dTime[11:13]}'
+    minute=f'{dTime[14:16]}'
+    second=f'{dTime[17:19]}'
+    runTime =f'{year}{month}{day}T{hour}{minute}{second}'
+    savePath=f'{inputpath}/inst-mag-script-{runTime}/'
+    os.mkdir(savePath)
+    for root, dirs, files in os.walk(inputpath):
         for file in files:
             if file.endswith(".fits"):
                 hdul=loadFits(os.path.join(root, file))
@@ -162,7 +168,7 @@ if __name__ == '__main__':
             timesNotInDark.append(time)
         else:
             darkLightDict[key]=darkDicionary[time]
-    print(f'{timesNotInDark}')
+    print(f'Times not represented in darks: {timesNotInDark}')
 
     #master darks for flat integration times
     masterDarkFlatdict=dict()
@@ -172,7 +178,8 @@ if __name__ == '__main__':
         masterDarkFlat = np.median(darkFlatStack, axis=0)
         masterDarkFlatdict[key]= masterDarkFlat
         plotImg(masterDarkFlatdict[key], 2, "Master Dark for Flats in Filter --")
-
+        plt.savefig(f'{savePath}/masterDarkFlat-{key}.png')
+        plt.close()
     
     #master darks for light integration times
     masterDarkLightDict=dict()
@@ -182,6 +189,8 @@ if __name__ == '__main__':
         masterDarkLight = np.median(darkLightStack, axis=0)
         masterDarkLightDict[key]=masterDarkLight
         plotImg(masterDarkLightDict[key], 2, "Master Dark for Light Image in time ---")
+        plt.savefig(f'{savePath}/masterDarkLight-{key}.png')
+        plt.close()
 
     #master flats for filter-time pairs
     masterFlatdict=dict()
@@ -193,6 +202,8 @@ if __name__ == '__main__':
         C = np.median(masterFlat)
         masterFlatdict[lightfilter]=masterFlat/C
         plotImg(masterFlatdict[lightfilter], 2, "Master Flat in Filter --")
+        plt.savefig(f'{savePath}/masterFlat-{key}.png')
+        plt.close()
 
 
     #master lights
@@ -201,11 +212,9 @@ if __name__ == '__main__':
         lightfilter, time = key.split('-')
         lightStack=lightDicionary[key]
         masterLight = (np.median(lightStack, axis=0) - masterDarkLightDict[key])/masterFlatdict[lightfilter]
-        scienceFramelist.append((masterLight,float (time)))
-        plotImg(scienceFramelist[-1][0], 2, "Top of the Telescope Light Frame for ---")
-    
+        scienceFramelist.append((masterLight,float (time), lightfilter))
+
     #calculate statistics for science frames
-    
     #consts.
     dw = 25
     radii = np.linspace(0, 2*dw, 2*dw)
@@ -213,32 +222,36 @@ if __name__ == '__main__':
     dist = np.sqrt((X-dw)**2 + (Y-dw)**2)
     ones = np.ones((dw*2, dw*2))
     radius = 15
-
+    fields= ['source id','instrument magnitude', 'R^2']
     #loop through all science frames
     
-    """ 
-    generate a CSV file, each science frame will have its own file. each source within the frame its own row. coresponding images with numbered stars as well.
-
-
-    """
-
     #show top of the telescope light frame
     for scienceFrame in scienceFramelist:
         mean, median, std, maximum = np.mean(scienceFrame[0]), np.median(scienceFrame[0]), np.std(scienceFrame[0]), np.max(scienceFrame[0])
         starFind = DAOStarFinder(threshold=median, fwhm=20.0, sky=mean, exclude_border=True, brightest=10, peakmax=maximum)
         sourceList = starFind(scienceFrame[0])
 
+        os.mkdir(f'{savePath}/scienceFrame-{scienceFrame[2]}/')
+        print(f'working on {savePath}/scienceFrame-{scienceFrame[2]}/')
+
+        with open(f'{savePath}/scienceFrame-{scienceFrame[2]}/output.csv', 'a') as f:
+            writer = csv.writer(f)
+            writer.writerow(fields)
+
+
         plt.figure()
         plt.imshow(scienceFrame[0], cmap='gray', vmin=mean-0.5*std, vmax=mean+0.5*std)
         plt.title("Top-of-Telescope Light Frame [Counts]" + f"\nMean:{mean:0.2f}; Median: {median:0.2f}; STD: {std:0.2f}")
         plt.tight_layout()
+
         for source in sourceList:
             xc, yc = source[2], source[1]
             loc = (xc, yc)
             plt.gca().add_patch(Circle(loc[::-1] ,radius=radius,fill=False, edgecolor='m', alpha=0.5, zorder=100, lw=2.0, linestyle="-"))
             plt.text(yc+5, xc+5, f"{source[0]}")
-        plt.show()
-
+        plt.savefig(f'{savePath}/scienceFrame-{scienceFrame[2]}/topOfTelescope.png')
+        plt.close()
+        
         for source in sourceList:
             sourceID = source[0]
             xc,yc = source[2], source[1]
@@ -254,6 +267,12 @@ if __name__ == '__main__':
 
             #Need to account for atmospheric extinction
             instMag = -2.5*np.log10(countFlux)   
+            outputs = [sourceID, instMag, R2]
+            with open(f'{savePath}/scienceFrame-{scienceFrame[2]}/output.csv', 'a') as f:
+                writer = csv.writer(f) 
+                writer.writerow(outputs)
+
+
             plt.figure()
             plt.subplot(1,2,1)
             plt.imshow(subFrame - params[3], cmap='gray')
@@ -273,4 +292,5 @@ if __name__ == '__main__':
             plt.axvline(x = params[0]+radius, color = 'm', linestyle="--")
             plt.xticks(np.linspace(0, dw*2, len(xLabels)), xLabels, rotation=45)
             plt.suptitle(f"Filter V PhotUtils Source ID {sourceID} w/o Background\nFit $R^2=${R2:0.4f}; InstMag = {instMag:0.3f}")
-            plt.show()
+            plt.savefig(f'{savePath}/scienceFrame-{scienceFrame[2]}/source-{sourceID}.png')
+            plt.close()
