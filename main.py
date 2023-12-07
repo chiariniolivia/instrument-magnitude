@@ -195,17 +195,14 @@ if __name__ == '__main__':
         plotImg(masterFlatdict[lightfilter], 2, "Master Flat in Filter --")
 
 
-
-    print(f'FLATS: {masterFlatdict.keys()}')
-    print(f'LIGHTS: {lightDicionary.keys()}')
     #master lights
     scienceFramelist=[]
     for key in lightDicionary.keys():
         lightfilter, time = key.split('-')
         lightStack=lightDicionary[key]
         masterLight = (np.median(lightStack, axis=0) - masterDarkLightDict[key])/masterFlatdict[lightfilter]
-        scienceFramelist.append(masterLight)
-        plotImg(scienceFramelist[-1], 2, "Top of the Telescope Light Frame for ---")
+        scienceFramelist.append((masterLight,float (time)))
+        plotImg(scienceFramelist[-1][0], 2, "Top of the Telescope Light Frame for ---")
     
     #calculate statistics for science frames
     
@@ -225,13 +222,55 @@ if __name__ == '__main__':
 
     """
 
-
+    #show top of the telescope light frame
     for scienceFrame in scienceFramelist:
-        mean, median, std, max = np.mean(scienceFrame), np.median(scienceFrame), np.std(scienceFrame), np.max(scienceFrame)
-        
-        sourceList = DAOStarFinder( scienceFrame,threshold=median, fwhm=20.0, sky=mean, exclude_border=True, brightest=10, peakmax=max)
+        mean, median, std, maximum = np.mean(scienceFrame[0]), np.median(scienceFrame[0]), np.std(scienceFrame[0]), np.max(scienceFrame[0])
+        starFind = DAOStarFinder(threshold=median, fwhm=20.0, sky=mean, exclude_border=True, brightest=10, peakmax=maximum)
+        sourceList = starFind(scienceFrame[0])
 
-        
+        plt.figure()
+        plt.imshow(scienceFrame[0], cmap='gray', vmin=mean-0.5*std, vmax=mean+0.5*std)
+        plt.title("Top-of-Telescope Light Frame [Counts]" + f"\nMean:{mean:0.2f}; Median: {median:0.2f}; STD: {std:0.2f}")
+        plt.tight_layout()
+        for source in sourceList:
+            xc, yc = source[2], source[1]
+            loc = (xc, yc)
+            plt.gca().add_patch(Circle(loc[::-1] ,radius=radius,fill=False, edgecolor='m', alpha=0.5, zorder=100, lw=2.0, linestyle="-"))
+            plt.text(yc+5, xc+5, f"{source[0]}")
+        plt.show()
 
-    
-    
+        for source in sourceList:
+            sourceID = source[0]
+            xc,yc = source[2], source[1]
+            loc = (xc,yc)
+            subFrame = scienceFrame[0][int(xc-dw):int(xc+dw), int(yc-dw):int(yc+dw)]
+            radialData_raw=extract_radial_data(subFrame, xC=dw, yC=dw)[:dw]
+            radialData = np.concatenate((radialData_raw[::-1], radialData_raw))
+            p0 = [dw, 1, maximum, mean]
+            params, R2 = fit_gaussian_1d(radii, radialData, p0)
+            counts = np.sum(subFrame, where=dist<radius)
+            nPix = np.sum(ones, where=dist<radius)
+            countFlux = counts/nPix/scienceFrame[1]
+
+            #Need to account for atmospheric extinction
+            instMag = -2.5*np.log10(countFlux)   
+            plt.figure()
+            plt.subplot(1,2,1)
+            plt.imshow(subFrame - params[3], cmap='gray')
+            plt.gca().add_patch(Circle((dw, dw),radius=radius,fill=False, edgecolor='m', alpha=0.5, zorder=100, lw=2.0, linestyle="--"))
+            xLabels = np.concatenate((np.linspace(0,dw,5)[::-1], np.linspace(0,dw,5)[1:]))
+
+            plt.xticks(np.linspace(0,dw*2,len(xLabels)), xLabels, rotation=45)
+            plt.yticks(np.linspace(0,dw*2,len(xLabels)), xLabels)
+
+            plt.subplot(1,2,2)
+
+            plt.plot(radii, radialData-params[3], 'b.')
+            plt.plot(radii, gaussian_1d(radii, *params[:-1], 0), 'r')
+            plt.grid(1)
+
+            plt.axvline(x = params[0]-radius, color = 'm', linestyle="--")
+            plt.axvline(x = params[0]+radius, color = 'm', linestyle="--")
+            plt.xticks(np.linspace(0, dw*2, len(xLabels)), xLabels, rotation=45)
+            plt.suptitle(f"Filter V PhotUtils Source ID {sourceID} w/o Background\nFit $R^2=${R2:0.4f}; InstMag = {instMag:0.3f}")
+            plt.show()
