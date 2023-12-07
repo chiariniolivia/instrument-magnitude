@@ -282,6 +282,7 @@ if __name__ == '__main__':
             plt.yticks(np.linspace(0,dw*2,len(xLabels)), xLabels)
 
 
+
             plt.subplot(1,2,2)
 
             plt.plot(radii, radialData-params[3], 'b.')
