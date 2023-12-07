@@ -75,6 +75,7 @@ ignore = None
 ASSUMPTIONS:
     -all fits from within input path are same source
     -all darks, flats, and biases are provided within directory given as input
+    -if source is too close to edge, skip it 
 """
 
 """
@@ -260,6 +261,8 @@ if __name__ == '__main__':
             radialData = np.concatenate((radialData_raw[::-1], radialData_raw))
             p0 = [dw, 1, maximum, mean]
             params, R2 = fit_gaussian_1d(radii, radialData, p0)
+            if dist.shape != subFrame.shape:
+                continue
             counts = np.sum(subFrame, where=dist<radius)
             nPix = np.sum(ones, where=dist<radius)
             countFlux = counts/nPix/scienceFrame[1]
@@ -271,7 +274,6 @@ if __name__ == '__main__':
                 writer = csv.writer(f) 
                 writer.writerow(outputs)
 
-
             plt.figure()
             plt.subplot(1,2,1)
             plt.imshow(subFrame - params[3], cmap='gray')
@@ -280,10 +282,6 @@ if __name__ == '__main__':
 
             plt.xticks(np.linspace(0,dw*2,len(xLabels)), xLabels, rotation=45)
             plt.yticks(np.linspace(0,dw*2,len(xLabels)), xLabels)
-
-
-
-
 
             plt.subplot(1,2,2)
 
@@ -297,3 +295,4 @@ if __name__ == '__main__':
             plt.suptitle(f"Filter V PhotUtils Source ID {sourceID} w/o Background\nFit $R^2=${R2:0.4f}; InstMag = {instMag:0.3f}")
             plt.savefig(f'{savePath}/scienceFrame-{scienceFrame[2]}/source-{sourceID}.png')
             plt.close()
+    print(f"Outputted all plots and csvs to: \n {savePath} \n Exiting...")
