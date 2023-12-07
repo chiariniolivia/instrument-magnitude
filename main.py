@@ -283,6 +283,8 @@ if __name__ == '__main__':
 
 
 
+
+
             plt.subplot(1,2,2)
 
             plt.plot(radii, radialData-params[3], 'b.')
