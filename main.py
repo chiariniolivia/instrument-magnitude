@@ -83,7 +83,6 @@ ARGUMENTS:
     [2] filters to ignore {UVBRI}
 """
 
-
 if __name__ == '__main__':
 
     print("rough instrument magnitude calculator now running")
@@ -177,7 +176,7 @@ if __name__ == '__main__':
         darkFlatStack = darkFlatDict[key]
         masterDarkFlat = np.median(darkFlatStack, axis=0)
         masterDarkFlatdict[key]= masterDarkFlat
-        plotImg(masterDarkFlatdict[key], 2, "Master Dark for Flats in Filter --")
+        plotImg(masterDarkFlatdict[key], 2, f"Master Dark for Flats in {key}")
         plt.savefig(f'{savePath}/masterDarkFlat-{key}.png')
         plt.close()
     
@@ -188,7 +187,7 @@ if __name__ == '__main__':
         darkLightStack = darkLightDict[key]
         masterDarkLight = np.median(darkLightStack, axis=0)
         masterDarkLightDict[key]=masterDarkLight
-        plotImg(masterDarkLightDict[key], 2, "Master Dark for Light Image in time ---")
+        plotImg(masterDarkLightDict[key], 2, f"Master Dark for Light Image in {key}")
         plt.savefig(f'{savePath}/masterDarkLight-{key}.png')
         plt.close()
 
@@ -201,7 +200,7 @@ if __name__ == '__main__':
         masterFlat= np.median(flatStack, axis=0) - masterDarkFlatdict[key]
         C = np.median(masterFlat)
         masterFlatdict[lightfilter]=masterFlat/C
-        plotImg(masterFlatdict[lightfilter], 2, "Master Flat in Filter --")
+        plotImg(masterFlatdict[lightfilter], 2, f"Master Flat in Filter {key}")
         plt.savefig(f'{savePath}/masterFlat-{key}.png')
         plt.close()
 
