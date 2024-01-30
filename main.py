@@ -199,12 +199,18 @@ if __name__ == '__main__':
         lightfilter, time = key.split('-')
         masterFlatdict[lightfilter]=None
         flatStack=flatDicionary[key]
-        masterFlat= np.median(flatStack, axis=0) - masterDarkFlatdict[key]
+       # masterFlat= np.median(flatStack) - masterDarkFlatdict[key]
+        masterFlat= np.median(flatStack- masterDarkFlatdict[key], axis=0) 
         C = np.median(masterFlat)
         masterFlatdict[lightfilter]=masterFlat/C
         plotImg(masterFlatdict[lightfilter], 2, f"Master Flat in Filter {key}")
         plt.savefig(f'{savePath}/masterFlat-{key}.png')
         plt.close()
+
+        with open(f'{savePath}/masterFlat-{key}-data.npy','wb') as f:
+            print("saved")
+            np.save(f,masterFlatdict[lightfilter] )
+
 
 
     #master lights
@@ -215,6 +221,7 @@ if __name__ == '__main__':
         masterLight = (np.median(lightStack, axis=0) - masterDarkLightDict[key])/masterFlatdict[lightfilter]
         scienceFramelist.append((masterLight,float (time), lightfilter))
 
+        
     #calculate statistics for science frames
     #consts.
     dw = 25
@@ -267,6 +274,8 @@ if __name__ == '__main__':
             counts = np.sum(subFrame, where=dist<radius)
             nPix = np.sum(ones, where=dist<radius)
             countFlux = counts/nPix/scienceFrame[1]
+
+            print(f"{sourceID}: \n numpx: \t{nPix}\n counts:\t{counts}\n countflux:\t{countFlux}\n")
 
             #Need to account for atmospheric extinction
             instMag = -2.5*np.log10(countFlux)   
